@@ -1,10 +1,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { getApiKey } from './apiKeyStore';
+import { getModels } from './modelConfig';
 import { ColorTheme, GeneratedContent, SupplementaryInfo } from '../types';
 
 const getAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error("API_KEY environment variable is not set.");
+    throw new Error("Gemini API 키가 설정되지 않았습니다. 우측 상단 설정(⚙) 메뉴에서 키를 입력하세요.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -270,25 +272,62 @@ const getRegenerationPrompt = (originalHtml: string, feedback: string, theme: Co
     `;
 };
 
+// The app renders images as data:image/jpeg, so convert Gemini's PNG output to JPEG.
+const pngBase64ToJpegBase64 = (base64: string, mimeType: string): Promise<string> =>
+    new Promise((resolve) => {
+        if (mimeType === 'image/jpeg') return resolve(base64);
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return resolve(base64);
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+        };
+        img.onerror = () => resolve(base64);
+        img.src = `data:${mimeType};base64,${base64}`;
+    });
+
+const generateImageWithImagen = async (prompt: string, aspectRatio: '16:9' | '1:1'): Promise<string | null> => {
+    const ai = getAI();
+    const response = await ai.models.generateImages({
+        model: getModels().imagen,
+        prompt,
+        config: { numberOfImages: 1, outputMimeType: 'image/jpeg', aspectRatio },
+    });
+    return response.generatedImages?.[0]?.image?.imageBytes ?? null;
+};
+
+const generateImageWithGemini = async (prompt: string, aspectRatio: '16:9' | '1:1'): Promise<string | null> => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+        model: getModels().geminiImage,
+        contents: `${prompt}
+
+Generate this as an image with a ${aspectRatio} aspect ratio.`,
+        config: { responseModalities: ['IMAGE', 'TEXT'], imageConfig: { aspectRatio } } as any,
+    });
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((part) => part.inlineData?.data);
+    if (!imagePart?.inlineData?.data) return null;
+    return pngBase64ToJpegBase64(imagePart.inlineData.data, imagePart.inlineData.mimeType || 'image/png');
+};
+
 export const generateImage = async (prompt: string, aspectRatio: '16:9' | '1:1' = '16:9'): Promise<string | null> => {
+    if (!prompt) return null;
+
     try {
-        if (!prompt) return null;
+        // Imagen needs a billing-enabled key; fall back to Gemini's image model if it fails.
+        const image = await generateImageWithImagen(prompt, aspectRatio);
+        if (image) return image;
+    } catch (imagenError) {
+        console.warn("Imagen failed, falling back to Gemini image model:", imagenError);
+    }
 
-        const ai = getAI();
-        const response = await ai.models.generateImages({
-            model: 'imagen-3.0-generate-001',
-            prompt: prompt,
-            config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/jpeg',
-                aspectRatio: aspectRatio,
-            },
-        });
-
-        if (response.generatedImages && response.generatedImages.length > 0) {
-            return response.generatedImages[0].image.imageBytes;
-        }
-        return null;
+    try {
+        return await generateImageWithGemini(prompt, aspectRatio);
     } catch (error) {
         console.error("Error generating image:", error);
         if (error instanceof Error) {
@@ -307,7 +346,7 @@ export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldG
     const ai = getAI();
     const prompt = getPrompt(topic, theme, interactiveElementIdea, rawContent, additionalRequest, currentDate);
     const contentResponse = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: getModels().text,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -333,7 +372,11 @@ export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldG
     
     let imageBase64: string | null = null;
     if (shouldGenerateImage) {
-        imageBase64 = await generateImage(parsedJson.supplementaryInfo.imagePrompt, aspectRatio);
+        // Image failure must not discard the already generated post; the user can retry per image.
+        imageBase64 = await generateImage(parsedJson.supplementaryInfo.imagePrompt, aspectRatio).catch((e) => {
+            console.warn("Main image generation failed:", e);
+            return null;
+        });
     }
     
     let subImages: { prompt: string; altText: string; base64: string | null }[] | null = null;
@@ -341,7 +384,10 @@ export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldG
         const subImagePromptObjects: { prompt: string; altText: string }[] = parsedJson.supplementaryInfo.subImagePrompts;
         
         const subImageBase64s = shouldGenerateSubImages
-            ? await Promise.all(subImagePromptObjects.map(p => generateImage(p.prompt, '16:9')))
+            ? await Promise.all(subImagePromptObjects.map(p => generateImage(p.prompt, '16:9').catch((e) => {
+                console.warn("Sub image generation failed:", e);
+                return null;
+            })))
             : subImagePromptObjects.map(() => null);
 
         subImages = subImagePromptObjects.map((pObj, index) => ({
@@ -378,7 +424,7 @@ export const regenerateBlogPostHtml = async (originalHtml: string, feedback: str
         const ai = getAI();
         const prompt = getRegenerationPrompt(originalHtml, feedback, theme, currentDate);
         const contentResponse = await ai.models.generateContent({
-            model: "gemini-3.1-pro-preview",
+            model: getModels().text,
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -441,7 +487,7 @@ const generateTopics = async (prompt: string, useSearch: boolean = false): Promi
         const enhancedPrompt = `${prompt}\n\n(This is a new request. Please generate a completely new and different set of suggestions. Random seed: ${Math.random()})`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: getModels().fast,
             contents: enhancedPrompt,
             config: config,
         });
@@ -567,7 +613,7 @@ export const suggestInteractiveElementForTopic = async (topic: string): Promise<
     try {
         const ai = getAI();
         const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: getModels().fast,
             contents: prompt,
             config: {
                 temperature: 0.8,

@@ -35,7 +35,7 @@ export const CurrentStatus: FC = () => {
            <span>{formattedDate} {formattedTime}</span>
            {weather && (
                <span className="ml-4">
-                   서울: {weather.condition}, {weather.temperature}
+                   부산: {weather.condition}, {weather.temperature}
                </span>
            )}
         </div>

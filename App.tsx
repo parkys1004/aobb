@@ -4,14 +4,27 @@ import { ColorTheme, GeneratedContent } from './types';
 import { generateBlogPost, generateEeatTopicSuggestions, generateCategoryTopicSuggestions, generateEvergreenTopicSuggestions, suggestInteractiveElementForTopic, generateImage, generateTopicsFromMemo, generateLongtailTopicSuggestions, regenerateBlogPostHtml } from './services/geminiService';
 import { CurrentStatus } from './components/CurrentStatus';
 import { Shortcuts } from './components/Shortcuts';
+import { SettingsModal } from './components/SettingsModal';
+import { SavedPostsModal } from './components/SavedPostsModal';
+import { savePost, SavedPost } from './services/postStorage';
 
-const Header: React.FC<{ onOpenHelp: () => void; }> = ({ onOpenHelp }) => (
+const Header: React.FC<{ onOpenHelp: () => void; onOpenSettings: () => void; }> = ({ onOpenHelp, onOpenSettings }) => (
   <header className="relative text-center p-6 border-b border-gray-700">
     <h1 className="text-4xl font-bold text-white tracking-tight">
       GPT PARK 의 올인원 블로깅<sup className="text-blue-400 text-2xl ml-1">BASIC</sup>
     </h1>
     <p className="text-gray-400 mt-2">AI와 함께 아이디어 발굴부터 SEO 최적화 포스팅까지, 블로깅의 모든 것을 한 곳에서 해결하세요.</p>
     <div className="absolute top-1/2 right-6 -translate-y-1/2 flex items-center space-x-2">
+      <button
+        onClick={onOpenSettings}
+        className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-gray-700"
+        aria-label="설정"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
       <button
         onClick={onOpenHelp}
         className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-gray-700"
@@ -597,6 +610,9 @@ function App() {
   type MainTab = 'generator' | 'shortcuts';
   const [mainTab, setMainTab] = useState<MainTab>('generator');
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isSavedPostsOpen, setIsSavedPostsOpen] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   // --- Topic Suggestion State ---
   type TopicSuggestionTab = 'eeat' | 'category' | 'evergreen' | 'longtail' | 'memo';
@@ -823,6 +839,26 @@ function App() {
     }
   }, [shouldIncludeInteractiveElement, topic]);
 
+
+  const handleSavePost = async () => {
+    if (!generatedContent) return;
+    try {
+      const title = generatedContent.supplementaryInfo.seoTitles?.[0] || topic || '제목 없음';
+      await savePost({ title, topic, theme: selectedTheme, content: generatedContent, thumbnailDataUrl });
+      setSaveStatus('저장되었습니다 ✓');
+    } catch (e) {
+      setSaveStatus(`저장 실패: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleLoadPost = (post: SavedPost) => {
+    setTopic(post.topic);
+    setSelectedTheme(post.theme);
+    setGeneratedContent(post.content);
+    setThumbnailDataUrl(post.thumbnailDataUrl);
+    setError(null);
+  };
 
   const handleGenerate = useCallback(async () => {
     if (!topic) {
@@ -1124,7 +1160,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 font-sans flex flex-col">
       <div className="flex-grow">
-        <Header onOpenHelp={() => setIsHelpModalOpen(true)} />
+        <Header onOpenHelp={() => setIsHelpModalOpen(true)} onOpenSettings={() => setIsSettingsOpen(true)} />
         <main className="container mx-auto p-6">
           <CurrentStatus />
           
@@ -1517,17 +1553,34 @@ function App() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                     </svg>
-                    생성 중...
+                    <span>생성 중...</span>
                   </>
                 ) : (
                   <>
                     <span role="img" aria-label="magic wand" className="mr-2">✨</span>
-                    포스트 생성
+                    <span>포스트 생성</span>
                   </>
                 )}
               </button>
             </div>
             {error && <p className="text-red-400 mt-4 text-center">{error}</p>}
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleSavePost}
+              disabled={!generatedContent || isLoading}
+              className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              💾 글 저장
+            </button>
+            <button
+              onClick={() => setIsSavedPostsOpen(true)}
+              className="bg-gray-700 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-600"
+            >
+              📂 저장된 글 불러오기
+            </button>
+            {saveStatus && <span className="text-sm text-gray-300">{saveStatus}</span>}
           </div>
 
           <ResultDisplay
@@ -1595,6 +1648,8 @@ function App() {
       </div>
       <Footer />
       {isHelpModalOpen && <HelpModal onClose={() => setIsHelpModalOpen(false)} />}
+      {isSavedPostsOpen && <SavedPostsModal onClose={() => setIsSavedPostsOpen(false)} onLoad={handleLoadPost} />}
+      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );
 }
