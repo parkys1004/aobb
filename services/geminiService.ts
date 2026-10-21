@@ -345,28 +345,68 @@ const getRegenerationPrompt = (originalHtml: string, feedback: string, theme: Co
     `;
 };
 
+const IMAGEN_MODEL = 'imagen-4.0-generate-001';
+const GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image';
+
+// 앱은 이미지를 data:image/jpeg로 렌더링하므로 Gemini가 내놓는 PNG를 JPEG로 변환한다.
+const pngBase64ToJpegBase64 = (base64: string, mimeType: string): Promise<string> =>
+    new Promise((resolve) => {
+        if (mimeType === 'image/jpeg') return resolve(base64);
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return resolve(base64);
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+        };
+        img.onerror = () => resolve(base64);
+        img.src = `data:${mimeType};base64,${base64}`;
+    });
+
+const generateImageWithImagen = async (prompt: string, aspectRatio: '16:9' | '1:1'): Promise<string | null> => {
+    const ai = getAI();
+    const response = await ai.models.generateImages({
+        model: IMAGEN_MODEL,
+        prompt,
+        config: { numberOfImages: 1, outputMimeType: 'image/jpeg', aspectRatio },
+    });
+    const count = response.generatedImages?.length ?? 0;
+    if (count > 0) recordImageUsage(IMAGEN_MODEL, count);
+    return response.generatedImages?.[0]?.image?.imageBytes ?? null;
+};
+
+const generateImageWithGemini = async (prompt: string, aspectRatio: '16:9' | '1:1'): Promise<string | null> => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+        model: GEMINI_IMAGE_MODEL,
+        contents: `${prompt}\n\nGenerate this as an image with a ${aspectRatio} aspect ratio.`,
+        config: { responseModalities: ['IMAGE', 'TEXT'], imageConfig: { aspectRatio } } as any,
+    });
+    recordImageUsage(GEMINI_IMAGE_MODEL, 1);
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((part) => part.inlineData?.data);
+    if (!imagePart?.inlineData?.data) return null;
+    return pngBase64ToJpegBase64(imagePart.inlineData.data, imagePart.inlineData.mimeType || 'image/png');
+};
+
 export const generateImage = async (prompt: string, aspectRatio: '16:9' | '1:1' = '16:9'): Promise<string | null> => {
+    if (!prompt) return null;
+    // 이미지는 Gemini만 지원한다. 다른 제공자로 글을 쓰는 중 Gemini 키가 없으면 이미지만 건너뛴다.
+    if (getActiveProvider() !== GEMINI_PROVIDER_ID && !getApiKey()) return null;
+
     try {
-        if (!prompt) return null;
-        // 이미지는 Gemini(Imagen)만 지원한다. 다른 제공자로 글을 쓰는 중 Gemini 키가 없으면 이미지만 건너뛴다.
-        if (getActiveProvider() !== GEMINI_PROVIDER_ID && !getApiKey()) return null;
+        // Imagen은 결제가 연결된 키가 필요하므로 실패하면 Gemini 이미지 모델로 대체한다.
+        const image = await generateImageWithImagen(prompt, aspectRatio);
+        if (image) return image;
+    } catch (imagenError) {
+        console.warn("Imagen failed, falling back to Gemini image model:", imagenError);
+    }
 
-        const ai = getAI();
-        const response = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: prompt,
-            config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/jpeg',
-                aspectRatio: aspectRatio,
-            },
-        });
-
-        if (response.generatedImages && response.generatedImages.length > 0) {
-            recordImageUsage('imagen-4.0-generate-001', response.generatedImages.length);
-            return response.generatedImages[0].image.imageBytes;
-        }
-        return null;
+    try {
+        return await generateImageWithGemini(prompt, aspectRatio);
     } catch (error) {
         console.error("Error generating image:", error);
         if (error instanceof Error) {
@@ -401,7 +441,11 @@ export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldG
     
     let imageBase64: string | null = null;
     if (shouldGenerateImage) {
-        imageBase64 = await generateImage(parsedJson.supplementaryInfo.imagePrompt, aspectRatio);
+        // 이미지 실패가 이미 생성된 글을 버리게 하지 않는다. 이미지는 사용자가 개별로 다시 시도할 수 있다.
+        imageBase64 = await generateImage(parsedJson.supplementaryInfo.imagePrompt, aspectRatio).catch((e) => {
+            console.warn("Main image generation failed:", e);
+            return null;
+        });
     }
     
     let subImages: { prompt: string; altText: string; base64: string | null }[] | null = null;
@@ -409,7 +453,10 @@ export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldG
         const subImagePromptObjects: { prompt: string; altText: string }[] = parsedJson.supplementaryInfo.subImagePrompts;
         
         const subImageBase64s = shouldGenerateSubImages
-            ? await Promise.all(subImagePromptObjects.map(p => generateImage(p.prompt, '16:9')))
+            ? await Promise.all(subImagePromptObjects.map(p => generateImage(p.prompt, '16:9').catch((e) => {
+                console.warn("Sub image generation failed:", e);
+                return null;
+            })))
             : subImagePromptObjects.map(() => null);
 
         subImages = subImagePromptObjects.map((pObj, index) => ({

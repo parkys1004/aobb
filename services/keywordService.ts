@@ -100,7 +100,7 @@ function extractJsonFromText(text: string): any {
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
     // FIX: Removed local AI instance creation to use the shared one.
     const prompt = `
-    오늘 서울의 현재 날씨를 Google 검색을 사용해서 알려주세요. 
+    오늘 부산의 현재 날씨를 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
     다른 설명 없이 JSON 코드 블록 형식으로만 응답해주세요.
     
