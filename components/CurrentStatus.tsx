@@ -14,7 +14,7 @@ export const CurrentStatus: FC = () => {
             } catch (e: any) {
                 console.error("Failed to fetch weather", e);
                 const isBillingError = e.message && (e.message.includes("429") || e.message.includes("요금 한도") || e.message.includes("지출 한도"));
-                setWeather({condition: isBillingError ? 'API 요금 한도 초과 ⚠️' : '날씨 정보 로딩 실패', temperature: '', wind: '', humidity: ''});
+                setWeather({condition: isBillingError ? 'API 요금 한도 초과' : '날씨를 불러오지 못했어요', temperature: '', wind: '', humidity: ''});
             }
         };
         fetchWeather();
@@ -35,7 +35,7 @@ export const CurrentStatus: FC = () => {
            <span>{formattedDate} {formattedTime}</span>
            {weather && (
                <span className="ml-4">
-                   서울: {weather.condition}, {weather.temperature}
+                   서울: {weather.condition}{weather.temperature ? `, ${weather.temperature}` : ''}
                </span>
            )}
         </div>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GPT PARK 의 올인원 블로깅</title>
+    <title>올인원 블로깅</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,17 +37,20 @@
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: #64748b;
       }
-      @keyframes title-glow {
-        0%, 100% {
-          text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3);
-        }
-        50% {
-          text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.5);
-        }
+      @media (prefers-reduced-motion: reduce) {
+        .animate-pulse, .animate-spin { animation: none !important; }
+        * { transition-duration: 0.01ms !important; }
       }
-      .title-effect span {
-        animation: title-glow 3s infinite ease-in-out;
+      html { color-scheme: dark; }
+      body { font-family: 'Pretendard', 'Inter', 'Noto Sans KR', sans-serif; -webkit-font-smoothing: antialiased; }
+      ::selection { background: rgba(59, 130, 246, 0.45); color: #fff; }
+      button:focus-visible, a:focus-visible, [role="tab"]:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: 2px;
       }
+      button:not(:disabled), select { cursor: pointer; }
+      input[type="checkbox"] { accent-color: #2563eb; }
+      * { scrollbar-color: #475569 #1e293b; }
     </style>
     <script>
       tailwind.config = {
@@ -71,7 +74,6 @@
   }
 }
     </script>
-  <link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-gray-900">
     <div id="root"></div>

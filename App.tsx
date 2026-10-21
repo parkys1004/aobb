@@ -4,18 +4,31 @@ import { ColorTheme, GeneratedContent } from './types';
 import { generateBlogPost, generateEeatTopicSuggestions, generateCategoryTopicSuggestions, generateEvergreenTopicSuggestions, suggestInteractiveElementForTopic, generateImage, generateTopicsFromMemo, generateLongtailTopicSuggestions, regenerateBlogPostHtml } from './services/geminiService';
 import { CurrentStatus } from './components/CurrentStatus';
 import { Shortcuts } from './components/Shortcuts';
+import { ApiKeyManagerPage } from './components/ApiKeyManagerPage';
+import { Icon } from './components/Icon';
 
-const Header: React.FC<{ onOpenHelp: () => void; }> = ({ onOpenHelp }) => (
+const Header: React.FC<{ onOpenHelp: () => void; onOpenApiKeyManager: () => void; }> = ({ onOpenHelp, onOpenApiKeyManager }) => (
   <header className="relative text-center p-6 border-b border-gray-700">
     <h1 className="text-4xl font-bold text-white tracking-tight">
-      GPT PARK 의 올인원 블로깅<sup className="text-blue-400 text-2xl ml-1">BASIC</sup>
+      올인원 블로깅<sup className="text-blue-400 text-2xl ml-1">BASIC</sup>
     </h1>
-    <p className="text-gray-400 mt-2">AI와 함께 아이디어 발굴부터 SEO 최적화 포스팅까지, 블로깅의 모든 것을 한 곳에서 해결하세요.</p>
+    <p className="text-gray-300 mt-2 text-balance">AI와 함께 아이디어 발굴부터 SEO 최적화 포스팅까지, 블로깅의 모든 것을 한 곳에서 해결하세요.</p>
     <div className="absolute top-1/2 right-6 -translate-y-1/2 flex items-center space-x-2">
+      <button
+        onClick={onOpenApiKeyManager}
+        className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-gray-700"
+        aria-label="API 키 관리"
+        title="API 키 관리"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+        </svg>
+      </button>
       <button
         onClick={onOpenHelp}
         className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-gray-700"
         aria-label="사용법 보기"
+        title="사용법 보기"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -27,13 +40,7 @@ const Header: React.FC<{ onOpenHelp: () => void; }> = ({ onOpenHelp }) => (
 
 const Footer: React.FC = () => (
   <footer className="text-center p-6 mt-8 border-t border-gray-700 text-gray-500 text-sm">
-    <p>Made by GPT PARK</p>
-    <a href="https://www.youtube.com/@AIFACT-GPTPARK" target="_blank" rel="noopener noreferrer" className="inline-flex items-center mt-2 hover:text-white transition-colors">
-       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-600" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
-      </svg>
-      YouTube Channel
-    </a>
+    <p>Made by 5barTV</p>
   </footer>
 );
 
@@ -49,18 +56,17 @@ const CopyToClipboardButton: React.FC<{ textToCopy: string }> = ({ textToCopy })
 
   return (
     <button onClick={handleCopy} className="flex items-center space-x-1 text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50" disabled={copied}>
-      {copied ? <span className="text-green-400">✅</span> : <span>📋</span>}
+      <Icon icon={copied ? 'check' : 'clipboard'} className={`w-4 h-4 ${copied ? 'text-green-400' : ''}`} />
       <span>{copied ? '복사됨!' : '복사'}</span>
     </button>
   );
 };
 
-const SocialMediaPostCard: React.FC<{ platform: string; content: string; icon: string }> = ({ platform, content, icon }) => {
+const SocialMediaPostCard: React.FC<{ platform: string; content: string }> = ({ platform, content }) => {
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
         <h3 className="font-semibold text-lg text-white flex items-center">
-          <span className="mr-2 text-xl">{icon}</span>
           {platform} 포스트
         </h3>
         <CopyToClipboardButton textToCopy={content} />
@@ -112,7 +118,7 @@ const InteractiveCodeModal: React.FC<{ code: string; onClose: () => void; }> = (
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-gray-700 flex justify-between items-center">
           <h2 className="text-lg font-bold text-white">인터랙티브 요소 코드</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl font-light leading-none px-2" aria-label="닫기">&times;</button>
         </div>
         <div className="p-4 overflow-y-auto custom-scrollbar flex-grow bg-gray-900">
           <pre className="text-sm whitespace-pre-wrap break-all font-mono">
@@ -121,7 +127,7 @@ const InteractiveCodeModal: React.FC<{ code: string; onClose: () => void; }> = (
         </div>
         <div className="p-4 border-t border-gray-700 flex justify-end bg-gray-800">
           <button onClick={handleCopy} className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm disabled:bg-gray-500" disabled={copied}>
-            {copied ? <span>✅</span> : <span>📋</span>}
+            <Icon icon={copied ? 'check' : 'clipboard'} className="w-4 h-4" />
             <span>{copied ? '복사 완료!' : '코드 복사'}</span>
           </button>
         </div>
@@ -304,7 +310,7 @@ const ResultDisplay: React.FC<{
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-10 bg-gray-800 rounded-lg h-96">
-        <span className="text-5xl animate-pulse">✨</span>
+        <Icon icon="sparkles" className="w-12 h-12 text-blue-400 animate-pulse" />
         <p className="text-white mt-4 text-lg">블로그 포스트를 생성 중입니다...</p>
         <p className="text-gray-400">잠시만 기다려 주세요. 최대 1분 정도 소요될 수 있습니다.</p>
       </div>
@@ -314,7 +320,7 @@ const ResultDisplay: React.FC<{
   if (!htmlContent) {
     return (
       <div className="flex flex-col items-center justify-center p-10 bg-gray-800 rounded-lg h-96 text-center">
-        <span className="text-5xl text-gray-500">✨</span>
+        <Icon icon="sparkles" className="w-12 h-12 text-gray-500" />
         <p className="text-white mt-4 text-lg">생성된 콘텐츠가 여기에 표시됩니다.</p>
         <p className="text-gray-400">위에서 주제를 입력하고 테마를 선택한 후 생성 버튼을 클릭하세요.</p>
       </div>
@@ -329,10 +335,10 @@ const ResultDisplay: React.FC<{
           <div className="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700">
             <div className="flex space-x-1 items-center">
               <button onClick={() => setViewMode('preview')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
-                <span role="img" aria-label="preview" className="mr-1">👀</span>미리보기
+                <Icon icon="eye" className="w-4 h-4 mr-1.5" />미리보기
               </button>
               <button onClick={() => setViewMode('html')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'html' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
-                <span role="img" aria-label="code" className="mr-1">💻</span>HTML
+                <Icon icon="code" className="w-4 h-4 mr-1.5" />HTML
               </button>
                <div className="text-xs text-gray-400 ml-4 border-l border-gray-700 pl-4">
                   <span>글자수(공백제외): {charCountNoSpaces.toLocaleString()}자</span>
@@ -342,13 +348,13 @@ const ResultDisplay: React.FC<{
                <button
                   onClick={() => setIsInteractiveCodeModalOpen(true)}
                   disabled={!interactiveCode}
-                  className="px-3 py-1 text-sm rounded-md bg-teal-600 text-white hover:bg-teal-700 transition-colors flex items-center disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-1 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span role="img" aria-label="interactive" className="mr-1">🎮</span>
+                  <Icon icon="play" className="w-4 h-4 mr-1.5" />
                   인터랙티브 코드
                 </button>
                 <button onClick={handleCopy} className="flex items-center space-x-2 bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700 transition-colors text-sm disabled:bg-gray-500" disabled={copied}>
-                  {copied ? <span>✅</span> : <span>📋</span>}
+                  <Icon icon={copied ? 'check' : 'clipboard'} className="w-4 h-4" />
                   <span>{copied ? '복사 완료!' : 'HTML 복사'}</span>
                 </button>
             </div>
@@ -410,14 +416,14 @@ const ResultDisplay: React.FC<{
                       <button
                         onClick={onGenerateThumbnail}
                         disabled={isGeneratingThumbnail || !imageBase64}
-                        className="mt-3 w-full text-center bg-teal-600 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-700 transition-colors duration-200 disabled:bg-gray-500 flex items-center justify-center"
+                        className="mt-3 w-full text-center bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-500 flex items-center justify-center"
                       >
                         {isGeneratingThumbnail ? (
                            <>
                             <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                             생성 중...
                           </>
-                        ) : '🖼️ 썸네일 생성'}
+                        ) : (<><Icon icon="photo" className="w-4 h-4 mr-1.5" />썸네일 생성</>)}
                       </button>
                     )}
                  </div>
@@ -496,10 +502,10 @@ const ResultDisplay: React.FC<{
           {socialMediaPosts && (
             <div className="bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col space-y-6">
               <h2 className="text-xl font-semibold text-white mb-2 border-b border-gray-700 pb-2">소셜 미디어 포스트</h2>
-              <SocialMediaPostCard platform="Threads" content={socialMediaPosts.threads} icon="🧵" />
-              <SocialMediaPostCard platform="Instagram" content={socialMediaPosts.instagram} icon="📸" />
-              <SocialMediaPostCard platform="Facebook" content={socialMediaPosts.facebook} icon="👍" />
-              <SocialMediaPostCard platform="X" content={socialMediaPosts.x} icon="✖️" />
+              <SocialMediaPostCard platform="Threads" content={socialMediaPosts.threads} />
+              <SocialMediaPostCard platform="Instagram" content={socialMediaPosts.instagram} />
+              <SocialMediaPostCard platform="Facebook" content={socialMediaPosts.facebook} />
+              <SocialMediaPostCard platform="X" content={socialMediaPosts.x} />
             </div>
           )}
         </div>
@@ -597,6 +603,15 @@ function App() {
   type MainTab = 'generator' | 'shortcuts';
   const [mainTab, setMainTab] = useState<MainTab>('generator');
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
+  // 설정 페이지는 해시(#/settings)로 구분해 뒤로 가기 버튼과 새로고침에서도 같은 화면을 유지한다.
+  const [isSettingsPage, setIsSettingsPage] = useState<boolean>(() => window.location.hash === '#/settings');
+  useEffect(() => {
+    const onHashChange = () => setIsSettingsPage(window.location.hash === '#/settings');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const openSettingsPage = () => { window.location.hash = '#/settings'; };
+  const closeSettingsPage = () => { window.location.hash = ''; };
 
   // --- Topic Suggestion State ---
   type TopicSuggestionTab = 'eeat' | 'category' | 'evergreen' | 'longtail' | 'memo';
@@ -1113,7 +1128,7 @@ function App() {
      <button
         onClick={onClick}
         disabled={disabled}
-        className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-700 transition-all duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center"
+        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition-all duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center"
       >
         {disabled ? (
           <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -1121,10 +1136,14 @@ function App() {
       </button>
   );
 
+  if (isSettingsPage) {
+    return <ApiKeyManagerPage onBack={closeSettingsPage} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 font-sans flex flex-col">
       <div className="flex-grow">
-        <Header onOpenHelp={() => setIsHelpModalOpen(true)} />
+        <Header onOpenHelp={() => setIsHelpModalOpen(true)} onOpenApiKeyManager={openSettingsPage} />
         <main className="container mx-auto p-6">
           <CurrentStatus />
           
@@ -1144,7 +1163,7 @@ function App() {
                 rel="noopener noreferrer"
                 className="group flex items-center rounded-md bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 px-4 py-2 text-sm font-bold text-slate-900 shadow-lg transition-transform duration-200 hover:scale-105"
             >
-                <span className="mr-2 filter drop-shadow">⭐</span>
+                <Icon icon="star" className="w-4 h-4 mr-2" />
                 <span>네이버 creator-advisor</span>
             </a>
           </div>
@@ -1267,7 +1286,7 @@ function App() {
                         </div>
                         <div className="flex items-center space-x-2">
                             <label htmlFor="file-upload" className="cursor-pointer bg-gray-700 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition-colors duration-200 inline-flex items-center">
-                                <span className="mr-2">📤</span>
+                                <Icon icon="upload" className="w-4 h-4 mr-2" />
                                 <span>파일 업로드 (.txt, .md 등)</span>
                             </label>
                             <input id="file-upload" type="file" multiple accept=".txt,.md,.html,.js,.jsx,.ts,.tsx,.json,.css" className="hidden" onChange={handleFileChange} />
@@ -1314,7 +1333,7 @@ function App() {
           {/* --- Main Generation Section --- */}
           <div id="generation-section" className="bg-gray-800 p-6 rounded-lg shadow-2xl mb-6">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <span role="img" aria-label="magic wand" className="w-6 h-6 mr-2 text-blue-400 text-xl">✨</span>
+              <Icon icon="sparkles" className="w-6 h-6 mr-2 text-blue-400" />
               포스트 생성하기
             </h3>
             <div className="grid md:grid-cols-2 gap-6">
@@ -1521,11 +1540,14 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <span role="img" aria-label="magic wand" className="mr-2">✨</span>
+                    <Icon icon="sparkles" className="w-5 h-5 mr-2" />
                     포스트 생성
                   </>
                 )}
               </button>
+              {!isLoading && !topic && (
+                <p className="mt-2 text-center text-sm text-gray-400">블로그 주제를 입력하면 생성할 수 있어요.</p>
+              )}
             </div>
             {error && <p className="text-red-400 mt-4 text-center">{error}</p>}
           </div>
@@ -1552,7 +1574,7 @@ function App() {
           {!isLoading && generatedContent && (
             <div className="mt-8 bg-gray-800 p-6 rounded-lg shadow-2xl">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <span role="img" aria-label="document with pencil" className="w-6 h-6 mr-2 text-green-400 text-xl">📝</span>
+                <Icon icon="pencil" className="w-6 h-6 mr-2 text-green-400" />
                 피드백 및 재작성
               </h3>
               <p className="text-gray-400 text-sm mb-4">
@@ -1574,7 +1596,7 @@ function App() {
                 <button
                   onClick={handleRegenerate}
                   disabled={isRegenerating || !regenerationFeedback.trim()}
-                  className="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700 transition-all duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center text-lg"
+                  className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 transition-all duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center text-lg"
                 >
                   {isRegenerating ? (
                     <>

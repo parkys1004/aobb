@@ -1,12 +1,87 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ColorTheme, GeneratedContent, SupplementaryInfo } from '../types';
+import { getApiKey } from './apiKeyStore';
+import { recordTokenUsage, recordImageUsage } from './usageTracker';
+import { resolveChatEndpoint, getActiveProvider, GEMINI_PROVIDER_ID } from './llmSettings';
+import { chatCompletion } from './openaiCompat';
+
+interface TextRequest {
+  prompt: string;
+  tier: 'pro' | 'lite';
+  schema?: object;
+  temperature?: number;
+  useSearch?: boolean;
+}
+
+const GEMINI_MODELS = { pro: 'gemini-3.1-pro-preview', lite: 'gemini-3.1-flash-lite-preview' } as const;
+
+// 선택된 제공자에 맞춰 텍스트를 생성한다. schema가 있으면 JSON 문자열을, 없으면 일반 텍스트를 돌려준다.
+const generateText = async ({ prompt, tier, schema, temperature, useSearch }: TextRequest): Promise<string> => {
+  const endpoint = resolveChatEndpoint(tier);
+  if (endpoint) {
+    // Gemini 외 제공자는 구조화 출력·구글 검색 도구가 없으므로, 스키마를 프롬프트에 명시해 JSON을 요청한다.
+    const fullPrompt = schema
+      ? `${prompt}\n\nRespond ONLY with a single valid JSON object that matches this JSON schema (type names are JSON types, e.g. STRING = string, ARRAY = array). Do not include any other text.\n${JSON.stringify(schema)}`
+      : prompt;
+    return chatCompletion(endpoint, { prompt: fullPrompt, json: !!schema, temperature });
+  }
+
+  const ai = getAI();
+  const model = GEMINI_MODELS[tier];
+  const config: Record<string, unknown> = {};
+  if (schema) {
+    config.responseMimeType = 'application/json';
+    config.responseSchema = schema;
+  }
+  if (useSearch) config.tools = [{ googleSearch: {} }];
+  if (temperature !== undefined) config.temperature = temperature;
+
+  const response = await ai.models.generateContent({ model, contents: prompt, config });
+  recordTokenUsage(model, response.usageMetadata);
+  return response.text;
+};
 
 const getAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error("API_KEY environment variable is not set.");
+    throw new Error('Gemini API 키가 설정되지 않았습니다. 우측 상단의 "API 키 관리"에서 키를 등록해주세요.');
   }
   return new GoogleGenAI({ apiKey });
+};
+
+export interface ConnectionTestResult {
+  success: boolean;
+  message: string;
+}
+
+// API 키 관리 팝업의 "연결 테스트"에서 사용한다. 저장 여부와 무관하게,
+// 사용자가 입력창에 넣은 키를 즉시 검증할 수 있도록 apiKeyStore를 거치지 않고 직접 키를 받는다.
+export const testGeminiConnection = async (apiKeyToTest: string): Promise<ConnectionTestResult> => {
+  if (!apiKeyToTest || !apiKeyToTest.trim()) {
+    return { success: false, message: 'API 키를 입력해주세요.' };
+  }
+  try {
+    const ai = new GoogleGenAI({ apiKey: apiKeyToTest.trim() });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-lite-preview',
+      contents: 'ping',
+      config: { maxOutputTokens: 5 },
+    });
+    recordTokenUsage('gemini-3.1-flash-lite-preview', response.usageMetadata);
+    return { success: true, message: 'Gemini API에 정상적으로 연결되었습니다.' };
+  } catch (error) {
+    console.error('Gemini connection test failed:', error);
+    if (error instanceof Error) {
+      if (error.message.includes('API key not valid') || error.message.includes('API_KEY_INVALID') || error.message.includes('400')) {
+        return { success: false, message: '유효하지 않은 API 키입니다. 키 값을 다시 확인해주세요.' };
+      }
+      if (error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('spending cap')) {
+        return { success: false, message: 'API 요금 한도를 초과했습니다. Google AI Studio에서 결제 상태를 확인해주세요.' };
+      }
+      return { success: false, message: `연결에 실패했습니다: ${error.message}` };
+    }
+    return { success: false, message: '알 수 없는 오류로 연결에 실패했습니다.' };
+  }
 };
 
 const responseSchema = {
@@ -273,10 +348,12 @@ const getRegenerationPrompt = (originalHtml: string, feedback: string, theme: Co
 export const generateImage = async (prompt: string, aspectRatio: '16:9' | '1:1' = '16:9'): Promise<string | null> => {
     try {
         if (!prompt) return null;
+        // 이미지는 Gemini(Imagen)만 지원한다. 다른 제공자로 글을 쓰는 중 Gemini 키가 없으면 이미지만 건너뛴다.
+        if (getActiveProvider() !== GEMINI_PROVIDER_ID && !getApiKey()) return null;
 
         const ai = getAI();
         const response = await ai.models.generateImages({
-            model: 'imagen-3.0-generate-001',
+            model: 'imagen-4.0-generate-001',
             prompt: prompt,
             config: {
                 numberOfImages: 1,
@@ -286,6 +363,7 @@ export const generateImage = async (prompt: string, aspectRatio: '16:9' | '1:1' 
         });
 
         if (response.generatedImages && response.generatedImages.length > 0) {
+            recordImageUsage('imagen-4.0-generate-001', response.generatedImages.length);
             return response.generatedImages[0].image.imageBytes;
         }
         return null;
@@ -304,18 +382,8 @@ export const generateImage = async (prompt: string, aspectRatio: '16:9' | '1:1' 
 
 export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldGenerateImage: boolean, shouldGenerateSubImages: boolean, interactiveElementIdea: string | null, rawContent: string | null, additionalRequest: string | null, aspectRatio: '16:9' | '1:1', currentDate: string): Promise<GeneratedContent> => {
   try {
-    const ai = getAI();
     const prompt = getPrompt(topic, theme, interactiveElementIdea, rawContent, additionalRequest, currentDate);
-    const contentResponse = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: responseSchema,
-        },
-    });
-
-    const jsonString = contentResponse.text;
+    const jsonString = await generateText({ prompt, tier: 'pro', schema: responseSchema });
     const parsedJson = JSON.parse(jsonString);
 
     if (
@@ -375,18 +443,8 @@ export const generateBlogPost = async (topic: string, theme: ColorTheme, shouldG
 
 export const regenerateBlogPostHtml = async (originalHtml: string, feedback: string, theme: ColorTheme, currentDate: string): Promise<string> => {
     try {
-        const ai = getAI();
         const prompt = getRegenerationPrompt(originalHtml, feedback, theme, currentDate);
-        const contentResponse = await ai.models.generateContent({
-            model: "gemini-3.1-pro-preview",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: regenerationResponseSchema,
-            },
-        });
-
-        const jsonString = contentResponse.text;
+        const jsonString = await generateText({ prompt, tier: 'pro', schema: regenerationResponseSchema });
         const parsedJson = JSON.parse(jsonString);
 
         if (!parsedJson.blogPostHtml) {
@@ -421,33 +479,17 @@ const topicSuggestionSchema = {
 
 const generateTopics = async (prompt: string, useSearch: boolean = false): Promise<string[]> => {
     try {
-        const ai = getAI();
-        const config: {
-            responseMimeType?: "application/json",
-            responseSchema?: typeof topicSuggestionSchema,
-            tools?: {googleSearch: {}}[],
-            temperature?: number;
-        } = {};
-        
-        if (useSearch) {
-             config.tools = [{googleSearch: {}}];
-        } else {
-             config.responseMimeType = "application/json";
-             config.responseSchema = topicSuggestionSchema;
-        }
-
-        config.temperature = 1.0;
-        
         const enhancedPrompt = `${prompt}\n\n(This is a new request. Please generate a completely new and different set of suggestions. Random seed: ${Math.random()})`;
 
-        const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
-            contents: enhancedPrompt,
-            config: config,
+        const text = await generateText({
+            prompt: enhancedPrompt,
+            tier: 'lite',
+            schema: useSearch ? undefined : topicSuggestionSchema,
+            useSearch,
+            temperature: 1.0,
         });
 
         if (useSearch) {
-            const text = response.text;
             // When using googleSearch, the output is not guaranteed to be JSON.
             // We'll parse it as a simple newline-separated list.
             let lines = text.split('\n').map(topic => topic.trim()).filter(Boolean);
@@ -458,8 +500,7 @@ const generateTopics = async (prompt: string, useSearch: boolean = false): Promi
             return lines.map(topic => topic.replace(/^(\d+\.|-|\*)\s*/, '').trim()).filter(Boolean);
         }
 
-        const jsonString = response.text;
-        const parsedJson = JSON.parse(jsonString);
+        const parsedJson = JSON.parse(text);
 
         if (!parsedJson.topics || !Array.isArray(parsedJson.topics)) {
             throw new Error("Received malformed JSON response from API for topic suggestion.");
@@ -565,15 +606,8 @@ export const suggestInteractiveElementForTopic = async (topic: string): Promise<
     `;
 
     try {
-        const ai = getAI();
-        const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
-            contents: prompt,
-            config: {
-                temperature: 0.8,
-            },
-        });
-        return response.text.trim();
+        const text = await generateText({ prompt, tier: 'lite', temperature: 0.8 });
+        return text.trim();
     } catch (error) {
         console.error("Error suggesting interactive element:", error);
         if (error instanceof Error) {
