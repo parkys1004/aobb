@@ -31,7 +31,7 @@ export const CurrentStatus: FC = () => {
     }).format(time);
 
     return (
-        <div className="text-sm text-slate-400 mb-4 text-center p-2 bg-gray-800 rounded-lg">
+        <div className="text-sm text-muted mb-4 text-center p-2 bg-panel rounded-lg">
            <span>{formattedDate} {formattedTime}</span>
            {weather && (
                <span className="ml-4">

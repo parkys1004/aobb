@@ -50,7 +50,7 @@ const links = [
 ];
 
 const ExternalLinkIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-faint group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
     </svg>
 );
@@ -61,22 +61,22 @@ export const Shortcuts: React.FC = () => {
 
     return (
         <div>
-            <h2 className="text-lg font-bold text-cyan-400 mb-2">실시간 트렌드 및 정보</h2>
-            <div className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-hidden">
-                <ul className="divide-y divide-slate-700/50">
+            <h2 className="text-lg font-bold text-accent mb-2">실시간 트렌드 및 정보</h2>
+            <div className="bg-panel/50 rounded-lg border border-line overflow-hidden">
+                <ul className="divide-y divide-line/50">
                     {regularLinks.map((link, index) => (
                         <li key={index}>
                             <a 
                                 href={link.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="p-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors duration-200 group"
+                                className="p-4 flex items-center justify-between hover:bg-raised/50 transition-colors duration-200 group"
                             >
                                 <div>
-                                    <h3 className="font-bold text-slate-200 group-hover:text-cyan-300 transition-colors">
+                                    <h3 className="font-bold text-fg group-hover:text-accent transition-colors">
                                         {link.title}
                                     </h3>
-                                    <p className="text-sm text-slate-400">{link.description}</p>
+                                    <p className="text-sm text-muted">{link.description}</p>
                                 </div>
                                 <ExternalLinkIcon />
                             </a>
