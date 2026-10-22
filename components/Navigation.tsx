@@ -5,6 +5,7 @@ import {
   FloppyDisk,
   Key,
   Moon,
+  PaperPlaneTilt,
   PencilSimpleLine,
   Question,
   Sun,
@@ -13,12 +14,13 @@ import {
 import type { Theme } from "@/lib/theme";
 import { ICON } from "@/components/ui";
 
-export type Page = "create" | "trends" | "saved" | "keys" | "help";
+export type Page = "create" | "trends" | "saved" | "publish" | "keys" | "help";
 
 export const NAV: { id: Page; label: string; icon: ReactNode }[] = [
   { id: "create", label: "글 만들기", icon: <PencilSimpleLine {...ICON} /> },
   { id: "trends", label: "트렌드", icon: <TrendUp {...ICON} /> },
   { id: "saved", label: "저장한 글", icon: <FloppyDisk {...ICON} /> },
+  { id: "publish", label: "발행", icon: <PaperPlaneTilt {...ICON} /> },
   { id: "keys", label: "API 키", icon: <Key {...ICON} /> },
   { id: "help", label: "사용법", icon: <Question {...ICON} /> },
 ];
@@ -111,7 +113,7 @@ export function BottomNav({
   return (
     <nav
       aria-label="주요 메뉴"
-      className="grid shrink-0 grid-cols-6 border-t border-line bg-panel pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="grid shrink-0 grid-cols-7 border-t border-line bg-panel pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       {NAV.map((item) => {
         const active = page === item.id;

@@ -10,6 +10,7 @@ import { Sidebar, BottomNav, type Page } from './components/Navigation';
 import { PageHeader, ScrollArea } from './components/ui';
 import { useTheme } from './lib/theme';
 import { SavedPostsModal } from './components/SavedPostsModal';
+import { PublishPage } from './components/PublishPage';
 import { ConfigNotice } from './components/ConfigNotice';
 import { NaverPublishModal } from './components/NaverPublishModal';
 import { TistoryPublishModal } from './components/TistoryPublishModal';
@@ -333,19 +334,19 @@ const ResultDisplay: React.FC<{
       )}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-panel rounded-lg overflow-hidden">
-          <div className="flex justify-between items-center p-3 bg-panel border-b border-line">
-            <div className="flex space-x-1 items-center">
-              <button onClick={() => setViewMode('preview')} className={`px-3 py-1 text-sm rounded-lg ${viewMode === 'preview' ? 'bg-accent text-onaccent' : 'bg-raised text-muted hover:bg-strong'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 p-3 bg-panel border-b border-line">
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => setViewMode('preview')} className={`inline-flex shrink-0 items-center whitespace-nowrap px-3 py-1 text-sm rounded-lg ${viewMode === 'preview' ? 'bg-accent text-onaccent' : 'bg-raised text-muted hover:bg-strong'}`}>
                 <Icon icon="eye" className="w-4 h-4 mr-1.5" />미리보기
               </button>
-              <button onClick={() => setViewMode('html')} className={`px-3 py-1 text-sm rounded-lg ${viewMode === 'html' ? 'bg-accent text-onaccent' : 'bg-raised text-muted hover:bg-strong'}`}>
+              <button onClick={() => setViewMode('html')} className={`inline-flex shrink-0 items-center whitespace-nowrap px-3 py-1 text-sm rounded-lg ${viewMode === 'html' ? 'bg-accent text-onaccent' : 'bg-raised text-muted hover:bg-strong'}`}>
                 <Icon icon="code" className="w-4 h-4 mr-1.5" />HTML
               </button>
-               <div className="text-xs text-muted ml-4 border-l border-line pl-4">
+               <div className="text-xs text-muted whitespace-nowrap sm:ml-2 sm:border-l sm:border-line sm:pl-4">
                   <span>글자수(공백제외): {charCountNoSpaces.toLocaleString()}자</span>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
                <button
                   onClick={() => setIsInteractiveCodeModalOpen(true)}
                   disabled={!interactiveCode}
@@ -406,14 +407,14 @@ const ResultDisplay: React.FC<{
 
                     <div className="grid grid-cols-2 gap-2">
                         {imageUrl && (
-                             <a href={imageUrl} download="featured-image.jpeg" className="btn btn-primary text-center inline-block">
+                             <a href={imageUrl} download="featured-image.jpeg" className="btn btn-primary">
                                 다운로드
                             </a>
                         )}
                         <button
                             onClick={onGenerateImage}
                             disabled={isGeneratingImage}
-                            className={`text-center bg-accent text-onaccent font-bold py-2 px-4 rounded-lg hover:brightness-110 transition-colors duration-200 disabled:bg-raised flex items-center justify-center text-sm ${!imageUrl ? 'col-span-2' : ''}`}
+                            className={`btn btn-primary ${!imageUrl ? 'col-span-2' : ''}`}
                         >
                         {isGeneratingImage ? (
                             <svg className="animate-spin h-5 w-5 text-fg" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -440,7 +441,7 @@ const ResultDisplay: React.FC<{
                   <div className="mt-4">
                     <h4 className="text-md font-medium text-muted mb-2">생성된 썸네일</h4>
                     <img src={thumbnailDataUrl} alt="Generated thumbnail" className="rounded-lg mb-3 w-full" />
-                    <a href={thumbnailDataUrl} download="thumbnail.jpeg" className="btn btn-primary w-full text-center inline-block">
+                    <a href={thumbnailDataUrl} download="thumbnail.jpeg" className="btn btn-primary w-full">
                       썸네일 다운로드
                     </a>
                   </div>
@@ -474,11 +475,11 @@ const ResultDisplay: React.FC<{
 
                                 <div className="grid grid-cols-2 gap-2">
                                     {subImage.base64 && (
-                                        <a href={`data:image/jpeg;base64,${subImage.base64}`} download={`sub-image-${index + 1}.jpeg`} className="btn btn-primary text-center inline-block">
+                                        <a href={`data:image/jpeg;base64,${subImage.base64}`} download={`sub-image-${index + 1}.jpeg`} className="btn btn-primary">
                                             다운로드
                                         </a>
                                     )}
-                                    <button onClick={() => onGenerateSubImage(index)} disabled={isGeneratingSubImages[index]} className={`text-center bg-accent text-onaccent font-bold py-2 px-4 rounded-lg hover:brightness-110 transition-colors duration-200 disabled:bg-raised flex items-center justify-center text-sm ${!subImage.base64 ? 'col-span-2' : ''}`}>
+                                    <button onClick={() => onGenerateSubImage(index)} disabled={isGeneratingSubImages[index]} className={`btn btn-primary ${!subImage.base64 ? 'col-span-2' : ''}`}>
                                          {isGeneratingSubImages[index] ? (
                                             <svg className="animate-spin h-5 w-5 text-fg" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                                         ) : (subImage.base64 ? '재생성' : '생성')}
@@ -615,13 +616,18 @@ function App() {
   // 설정 페이지는 해시(#/settings)로 구분해 뒤로 가기 버튼과 새로고침에서도 같은 화면을 유지한다.
   const [theme, setTheme] = useTheme();
   const [isSettingsPage, setIsSettingsPage] = useState<boolean>(() => window.location.hash === '#/settings');
+  const [isPublishPage, setIsPublishPage] = useState<boolean>(() => window.location.hash === '#/publish');
   useEffect(() => {
-    const onHashChange = () => setIsSettingsPage(window.location.hash === '#/settings');
+    const onHashChange = () => {
+      setIsSettingsPage(window.location.hash === '#/settings');
+      setIsPublishPage(window.location.hash === '#/publish');
+    };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
   const openSettingsPage = () => { window.location.hash = '#/settings'; };
   const closeSettingsPage = () => { window.location.hash = ''; };
+  const openPublishPage = () => { window.location.hash = '#/publish'; };
   const [isSavedPostsOpen, setIsSavedPostsOpen] = useState<boolean>(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
@@ -1161,14 +1167,16 @@ function App() {
       </button>
   );
 
-  const currentPage: Page = isSettingsPage ? 'keys' : mainTab === 'generator' ? 'create' : 'trends';
+  const currentPage: Page = isSettingsPage ? 'keys' : isPublishPage ? 'publish' : mainTab === 'generator' ? 'create' : 'trends';
 
   const navigate = (page: Page) => {
     if (page === 'create' || page === 'trends') {
-      if (isSettingsPage) closeSettingsPage();
+      if (isSettingsPage || isPublishPage) closeSettingsPage();
       setMainTab(page === 'create' ? 'generator' : 'shortcuts');
     } else if (page === 'keys') {
       openSettingsPage();
+    } else if (page === 'publish') {
+      openPublishPage();
     } else if (page === 'saved') {
       setIsSavedPostsOpen(true);
     } else {
@@ -1193,6 +1201,16 @@ function App() {
 
   if (isSettingsPage) {
     return renderShell(<ApiKeyManagerPage onBack={closeSettingsPage} />);
+  }
+
+  if (isPublishPage) {
+    return renderShell(
+      <PublishPage
+        currentContent={generatedContent}
+        currentTitle={topic}
+        currentThumbnail={thumbnailDataUrl}
+      />
+    );
   }
 
   return renderShell(
