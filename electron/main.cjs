@@ -1,5 +1,6 @@
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, ipcMain } = require('electron');
 const path = require('path');
+const { publishPost } = require('./naverBlog.cjs');
 
 const DEV_SERVER_URL = process.env.ELECTRON_DEV_SERVER_URL;
 
@@ -9,9 +10,10 @@ const createWindow = () => {
         height: 900,
         minWidth: 960,
         minHeight: 640,
-        title: 'GPT Park 블로깅',
+        title: '올인원 블로깅',
         autoHideMenuBar: true,
         webPreferences: {
+            preload: path.join(__dirname, 'preload.cjs'),
             contextIsolation: true,
             nodeIntegration: false,
         },
@@ -29,6 +31,15 @@ const createWindow = () => {
         win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
     }
 };
+
+ipcMain.handle('naver-blog:publish', async (event, payload) => {
+    try {
+        const result = await publishPost(payload, (message) => event.sender.send('naver-blog:progress', message));
+        return { ok: true, ...result };
+    } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+});
 
 app.whenReady().then(() => {
     if (!DEV_SERVER_URL) Menu.setApplicationMenu(null);

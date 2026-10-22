@@ -10,6 +10,8 @@ import { Sidebar, BottomNav, type Page } from './components/Navigation';
 import { PageHeader, ScrollArea } from './components/ui';
 import { useTheme } from './lib/theme';
 import { SavedPostsModal } from './components/SavedPostsModal';
+import { NaverPublishModal } from './components/NaverPublishModal';
+import { TistoryPublishModal } from './components/TistoryPublishModal';
 import { savePost, SavedPost } from './services/postStorage';
 
 const CopyToClipboardButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
@@ -141,6 +143,8 @@ const ResultDisplay: React.FC<{
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'html'>('preview');
   const [isInteractiveCodeModalOpen, setIsInteractiveCodeModalOpen] = useState(false);
+  const [naverHtml, setNaverHtml] = useState<string | null>(null);
+  const [isTistoryOpen, setIsTistoryOpen] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const charCountNoSpaces = useMemo(() => {
@@ -224,6 +228,19 @@ const ResultDisplay: React.FC<{
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // 블로그에 올릴 최종 HTML: 이미지 자리표시자를 실제 <img>로 채운다. (data URL은 등록 시 업로드된다)
+  const buildPublishHtml = () => {
+    let html = htmlContent.replace('<!--IMAGE_PLACEHOLDER-->', imageHtml);
+    subImages?.forEach((image, index) => {
+      if (!image.base64) return;
+      html = html.replace(
+        `<!--SUB_IMAGE_PLACEHOLDER_${index + 1}-->`,
+        `<figure style="margin: 25px 0;"><img src="data:image/jpeg;base64,${image.base64}" alt="${image.altText}" style="width: 100%; max-height: 400px; border-radius: 8px; object-fit: contain;"><figcaption style="text-align: center; font-size: 14px; color: #6c757d; margin-top: 8px;">${image.altText}</figcaption></figure>`
+      );
+    });
+    return html.replace(/<!--SUB_IMAGE_PLACEHOLDER_\d+-->/g, '');
+  };
   
   useEffect(() => {
     if (viewMode === 'preview' && previewRef.current && htmlContent) {
@@ -298,6 +315,21 @@ const ResultDisplay: React.FC<{
   return (
     <div className="mt-8">
       <h2 className="text-2xl font-semibold text-fg mb-4">생성된 콘텐츠</h2>
+      {isTistoryOpen && (
+        <TistoryPublishModal
+          onClose={() => setIsTistoryOpen(false)}
+          title={supplementaryInfo?.seoTitles?.[0] || ''}
+          html={htmlToCopyAndShow}
+        />
+      )}
+      {naverHtml !== null && (
+        <NaverPublishModal
+          onClose={() => setNaverHtml(null)}
+          title={supplementaryInfo?.seoTitles?.[0] || ''}
+          html={naverHtml}
+          tags={supplementaryInfo?.keywords || []}
+        />
+      )}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-panel rounded-lg overflow-hidden">
           <div className="flex justify-between items-center p-3 bg-panel border-b border-line">
@@ -324,6 +356,14 @@ const ResultDisplay: React.FC<{
                 <button onClick={handleCopy} className="btn btn-primary btn-sm" disabled={copied}>
                   <Icon icon={copied ? 'check' : 'clipboard'} className="w-4 h-4" />
                   <span>{copied ? '복사 완료!' : 'HTML 복사'}</span>
+                </button>
+                <button onClick={() => setNaverHtml(buildPublishHtml())} className="btn btn-primary btn-sm">
+                  <Icon icon="upload" className="w-4 h-4" />
+                  <span>네이버 등록</span>
+                </button>
+                <button onClick={() => setIsTistoryOpen(true)} className="btn btn-primary btn-sm">
+                  <Icon icon="upload" className="w-4 h-4" />
+                  <span>티스토리 등록</span>
                 </button>
             </div>
           </div>
@@ -499,12 +539,12 @@ const HelpModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-panel rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-line sticky top-0 bg-panel z-10 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-fg">GPT PARK 올인원 블로깅 매뉴얼</h2>
+          <h2 className="text-2xl font-bold text-fg">올인원 블로깅 매뉴얼</h2>
           <button onClick={onClose} className="text-muted hover:text-fg text-3xl font-light">&times;</button>
         </div>
         <div className="p-6 space-y-8">
           <ManualSection title="[시작하며] 이 앱은 무엇인가요?">
-            <p>GPT PARK의 올인원 블로깅은 아이디어 발굴부터 SEO(검색엔진최적화) 분석, 고품질의 기사 작성, 소셜 미디어 홍보까지 블로그 운영의 전 과정을 돕는 강력한 AI 어시스턴트입니다.</p>
+            <p>올인원 블로깅은 아이디어 발굴부터 SEO(검색엔진최적화) 분석, 고품질의 기사 작성, 소셜 미디어 홍보까지 블로그 운영의 전 과정을 돕는 강력한 AI 어시스턴트입니다.</p>
             <p>복잡한 과정을 2개의 핵심 탭 <span className="text-accent font-semibold">'주제 아이디어 얻기', '트렌드 바로가기'</span>으로 단순화하여 누구나 쉽게 전문적인 블로그 콘텐츠를 만들 수 있도록 지원합니다.</p>
           </ManualSection>
 
