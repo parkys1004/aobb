@@ -174,7 +174,7 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                                         type="text"
                                         value={modelOverrides[activeProvider] ?? ''}
                                         onChange={e => setModelOverride(activeProvider, e.target.value)}
-                                        placeholder={activeProvider === CUSTOM_PROVIDER_ID ? '모델 이름 (필수, 예: llama3.1)' : `모델 이름 (비우면 기본값: ${getDefaultModel(activeProvider)})`}
+                                        placeholder={activeProvider === CUSTOM_PROVIDER_ID ? '모델 이름 (비우면 서버의 첫 모델을 자동 선택, 예: llama3.1)' : `모델 이름 (비우면 기본값: ${getDefaultModel(activeProvider)})`}
                                         className="w-full bg-panel border border-strong rounded-lg px-3 py-2 text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
                                     />
                                     <p className="text-xs text-accent">

@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { ColorTheme, GeneratedContent, SupplementaryInfo } from '../types';
 import { getApiKey } from './apiKeyStore';
 import { recordTokenUsage, recordImageUsage } from './usageTracker';
-import { resolveChatEndpoint, getActiveProvider, GEMINI_PROVIDER_ID } from './llmSettings';
+import { resolveChatEndpoint, detectServerModel, getActiveProvider, GEMINI_PROVIDER_ID } from './llmSettings';
 import { chatCompletion } from './openaiCompat';
 
 interface TextRequest {
@@ -19,6 +19,7 @@ const GEMINI_MODELS = { pro: 'gemini-3.1-pro-preview', lite: 'gemini-3.1-flash-l
 const generateText = async ({ prompt, tier, schema, temperature, useSearch }: TextRequest): Promise<string> => {
   const endpoint = resolveChatEndpoint(tier);
   if (endpoint) {
+    if (!endpoint.model) endpoint.model = await detectServerModel(endpoint);
     // Gemini 외 제공자는 구조화 출력·구글 검색 도구가 없으므로, 스키마를 프롬프트에 명시해 JSON을 요청한다.
     const fullPrompt = schema
       ? `${prompt}\n\nRespond ONLY with a single valid JSON object that matches this JSON schema (type names are JSON types, e.g. STRING = string, ARRAY = array). Do not include any other text.\n${JSON.stringify(schema)}`

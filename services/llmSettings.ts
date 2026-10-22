@@ -93,10 +93,8 @@ export const resolveChatEndpoint = (tier: 'pro' | 'lite'): ChatEndpoint | null =
         if (!baseUrl) {
             throw new Error('자체 서버 주소가 설정되지 않았습니다. "API 키 관리"에서 서버 주소를 등록해주세요.');
         }
-        if (!override) {
-            throw new Error('자체 서버에서 사용할 모델 이름이 설정되지 않았습니다. "API 키 관리"에서 모델 이름을 입력해주세요. (예: llama3.1)');
-        }
-        return { label: '자체 서버', baseUrl: baseUrl.replace(/\/+$/, ''), key: extras[CUSTOM_SERVER_KEY_NAME] || null, model: override };
+        // 모델 이름이 비어 있으면 호출 직전에 detectServerModel로 서버의 모델 목록에서 고른다.
+        return { label: '자체 서버', baseUrl: baseUrl.replace(/\/+$/, ''), key: extras[CUSTOM_SERVER_KEY_NAME] || null, model: override || '' };
     }
 
     const provider = FREE_PROVIDERS.find(p => p.id === id);
@@ -114,4 +112,28 @@ export const resolveChatEndpoint = (tier: 'pro' | 'lite'): ChatEndpoint | null =
         key,
         model: override || (tier === 'pro' ? endpoint.proModel : endpoint.liteModel),
     };
+};
+
+const detectedModels = new Map<string, string>();
+
+// 자체 서버(OpenAI 호환)의 /models 목록에서 첫 모델을 골라 쓴다. 서버 주소별로 결과를 기억한다.
+export const detectServerModel = async (endpoint: ChatEndpoint): Promise<string> => {
+    const cached = detectedModels.get(endpoint.baseUrl);
+    if (cached) return cached;
+    const manual = '"API 키 관리"에서 모델 이름을 직접 입력해주세요. (예: llama3.1)';
+    let id: string | undefined;
+    try {
+        const res = await fetch(`${endpoint.baseUrl}/models`, endpoint.key ? { headers: { Authorization: `Bearer ${endpoint.key}` } } : undefined);
+        if (res.ok) {
+            const data = await res.json();
+            id = data?.data?.[0]?.id ?? data?.models?.[0]?.name;
+        }
+    } catch {
+        // 아래에서 수동 입력 안내 오류로 처리한다.
+    }
+    if (!id) {
+        throw new Error(`자체 서버에서 모델 목록을 가져오지 못했습니다. ${manual}`);
+    }
+    detectedModels.set(endpoint.baseUrl, id);
+    return id;
 };
