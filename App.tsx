@@ -10,6 +10,7 @@ import { Sidebar, BottomNav, type Page } from './components/Navigation';
 import { PageHeader, ScrollArea } from './components/ui';
 import { useTheme } from './lib/theme';
 import { SavedPostsModal } from './components/SavedPostsModal';
+import { ConfigNotice } from './components/ConfigNotice';
 import { NaverPublishModal } from './components/NaverPublishModal';
 import { TistoryPublishModal } from './components/TistoryPublishModal';
 import { savePost, SavedPost } from './services/postStorage';
@@ -1179,6 +1180,7 @@ function App() {
     <div className="flex h-dvh">
       <Sidebar page={currentPage} onNavigate={navigate} theme={theme} onThemeChange={setTheme} />
       <div className="flex min-w-0 flex-1 flex-col">
+        <ConfigNotice onOpenSettings={isSettingsPage ? undefined : openSettingsPage} />
         <ScrollArea as="main" className="min-h-0 flex-1" scrollClassName="h-full overflow-y-auto">
           {children}
         </ScrollArea>

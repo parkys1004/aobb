@@ -525,6 +525,33 @@ const topicSuggestionSchema = {
     required: ["topics"]
 };
 
+// 모델마다 응답 모양이 달라(배열만, 다른 키 이름, 객체 항목, JSON이 아닌 줄 목록) 가능한 형태를 모두 받아 문자열 배열로 만든다.
+const extractTopics = (text: string): string[] => {
+    const itemToString = (item: unknown): string => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') {
+            const first = Object.values(item).find((v): v is string => typeof v === 'string');
+            return first ?? '';
+        }
+        return '';
+    };
+    const clean = (items: unknown[]): string[] =>
+        items.map(itemToString).map(t => t.replace(/^(\d+[.)]|-|\*)\s*/, '').trim()).filter(Boolean);
+
+    let list: unknown[] | null = null;
+    try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) list = parsed;
+        else if (parsed && typeof parsed === 'object') {
+            list = Array.isArray(parsed.topics) ? parsed.topics : Object.values(parsed).find(Array.isArray) as unknown[] | undefined ?? null;
+        }
+    } catch {
+        // JSON이 아니면 아래에서 줄 단위 목록으로 해석한다.
+    }
+    if (!list) list = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('```') && !/^[{}\[\]]/.test(l));
+    return clean(list);
+};
+
 const generateTopics = async (prompt: string, useSearch: boolean = false): Promise<string[]> => {
     try {
         const enhancedPrompt = `${prompt}\n\n(This is a new request. Please generate a completely new and different set of suggestions. Random seed: ${Math.random()})`;
@@ -548,12 +575,11 @@ const generateTopics = async (prompt: string, useSearch: boolean = false): Promi
             return lines.map(topic => topic.replace(/^(\d+\.|-|\*)\s*/, '').trim()).filter(Boolean);
         }
 
-        const parsedJson = JSON.parse(text);
-
-        if (!parsedJson.topics || !Array.isArray(parsedJson.topics)) {
+        const topics = extractTopics(text);
+        if (topics.length === 0) {
             throw new Error("Received malformed JSON response from API for topic suggestion.");
         }
-        return parsedJson.topics;
+        return topics;
     } catch (error) {
         console.error("Error generating topics:", error);
         if (error instanceof Error) {
