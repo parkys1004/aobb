@@ -5,12 +5,9 @@ import {
     testProviderConnection, testCustomServer,
 } from '../services/providers';
 import { useLlmSettings, GEMINI_PROVIDER_ID, CUSTOM_PROVIDER_ID, getDefaultModel } from '../services/llmSettings';
-import { encryptKeys, decryptKeys, saveVaultToLocalDrive, loadVaultFromLocalDrive } from '../utils/keyVault';
 import { testGeminiConnection, ConnectionTestResult } from '../services/geminiService';
 import { UsagePanel } from './UsagePanel';
 import { Icon } from './Icon';
-
-const GEMINI_KEY_NAME = 'GEMINI_API_KEY';
 
 type Status = { type: 'success' | 'error'; message: string } | null;
 
@@ -51,9 +48,7 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
     const [sessionApiKey, setSessionApiKey] = useApiKey();
     const [inputKey, setInputKey] = useState(sessionApiKey ?? '');
     const [showKey, setShowKey] = useState(false);
-    const [passphrase, setPassphrase] = useState('');
     const [status, setStatus] = useState<Status>(null);
-    const [isBusy, setIsBusy] = useState(false);
     const [isTestModalOpen, setIsTestModalOpen] = useState(false);
     const { activeProvider, modelOverrides, setActiveProvider, setModelOverride } = useLlmSettings();
     const [extraKeys, setExtraKeys] = useExtraKeys();
@@ -61,7 +56,11 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
     const [rowTests, setRowTests] = useState<Record<string, string>>({});
     const [copied, setCopied] = useState<string | null>(null);
 
-    // 입력 즉시 세션에 반영해 저장 버튼을 누르기 전에도 글 생성에 쓸 수 있게 한다. (파일 저장은 별도)
+    // 저장된 키는 앱 시작 직후 비동기로 불러오므로, 아직 비어 있는 입력란에만 채워 넣는다.
+    useEffect(() => { setInputKey(prev => prev || sessionApiKey || ''); }, [sessionApiKey]);
+    useEffect(() => { setExtraInputs(prev => (Object.keys(prev).length ? prev : extraKeys)); }, [extraKeys]);
+
+    // 입력 즉시 저장해 저장 버튼을 누르기 전에도 글 생성에 쓸 수 있게 한다. (파일 저장은 별도)
     const setExtraInput = (name: string, value: string) => {
         const next = { ...extraInputs, [name]: value };
         setExtraInputs(next);
@@ -84,62 +83,13 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
         }
     };
 
-    const handleSaveAndTest = async () => {
+    const handleTest = () => {
         if (!inputKey.trim()) {
             setStatus({ type: 'error', message: 'API 키를 입력해주세요.' });
             return;
         }
-        if (passphrase.length < 4) {
-            setStatus({ type: 'error', message: '암호화에 사용할 비밀번호를 4자 이상 입력해주세요.' });
-            return;
-        }
-        setIsBusy(true);
         setStatus(null);
-        try {
-            setSessionApiKey(inputKey.trim());
-            setExtraKeys(extraInputs);
-            const vault = await encryptKeys({ [GEMINI_KEY_NAME]: inputKey.trim(), ...extraInputs }, passphrase);
-            const result = await saveVaultToLocalDrive(vault);
-            if (result === 'saved') {
-                setStatus({ type: 'success', message: '로컬 드라이브에 암호화된 키 파일로 저장했습니다.' });
-                setIsTestModalOpen(true);
-            }
-        } catch (error) {
-            setStatus({ type: 'error', message: error instanceof Error ? error.message : '저장 중 오류가 발생했습니다.' });
-        } finally {
-            setIsBusy(false);
-        }
-    };
-
-    const handleLoad = async () => {
-        if (passphrase.length < 4) {
-            setStatus({ type: 'error', message: '파일을 저장할 때 사용했던 비밀번호를 입력해주세요.' });
-            return;
-        }
-        setIsBusy(true);
-        setStatus(null);
-        try {
-            const vault = await loadVaultFromLocalDrive();
-            if (!vault) {
-                setIsBusy(false);
-                return;
-            }
-            const keys = await decryptKeys(vault, passphrase);
-            const loadedKey = keys[GEMINI_KEY_NAME];
-            if (!loadedKey) {
-                throw new Error('선택한 파일에 Gemini API 키가 없습니다.');
-            }
-            setInputKey(loadedKey);
-            setSessionApiKey(loadedKey);
-            const { [GEMINI_KEY_NAME]: _gemini, ...loadedExtras } = keys;
-            setExtraInputs(loadedExtras);
-            setExtraKeys(loadedExtras);
-            setStatus({ type: 'success', message: '키 파일을 불러와 이 세션에 적용했습니다.' });
-        } catch (error) {
-            setStatus({ type: 'error', message: error instanceof Error ? error.message : '불러오기 중 오류가 발생했습니다.' });
-        } finally {
-            setIsBusy(false);
-        }
+        setIsTestModalOpen(true);
     };
 
     return (
@@ -152,7 +102,7 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                     </div>
                     <div className="p-6 space-y-5">
                         <p className="text-muted text-sm">
-                            API 키는 앱 빌드에 내장되지 않고 이 브라우저 세션에만 임시로 보관됩니다. 계속 사용하려면 아래에서 로컬 드라이브에 암호화하여 저장한 뒤, 다음에 방문했을 때 불러와주세요.
+                            API 키는 앱 빌드에 내장되지 않습니다. 입력하면 이 PC의 Windows 계정으로 암호화되어 자동 저장되고, 앱을 다시 켜거나 업데이트해도 유지됩니다. (웹 브라우저로 실행하면 브라우저 저장소에 저장됩니다.)
                         </p>
 
                         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
@@ -190,7 +140,7 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                                 <input
                                     type={showKey ? 'text' : 'password'}
                                     value={inputKey}
-                                    onChange={e => setInputKey(e.target.value)}
+                                    onChange={e => { setInputKey(e.target.value); setSessionApiKey(e.target.value); }}
                                     placeholder="AIza..."
                                     className="flex-1 min-w-0 bg-bg border border-strong rounded-lg px-3 py-2 text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
                                 />
@@ -298,38 +248,19 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                             ))}
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-muted mb-1">암호화 비밀번호 (저장·불러오기 시 사용)</label>
-                            <input
-                                type="password"
-                                value={passphrase}
-                                onChange={e => setPassphrase(e.target.value)}
-                                placeholder="4자 이상 입력"
-                                className="w-full bg-bg border border-strong rounded-lg px-3 py-2 text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            />
-                        </div>
-
                         {status && (
                             <p className={`text-sm rounded-lg px-3 py-2 border ${status.type === 'success' ? 'bg-raised border-line text-fg' : 'bg-accent/10 border-accent/40 text-accent'}`}>
                                 {status.message}
                             </p>
                         )}
 
-                        <div className="space-y-3">
-                            <button
-                                onClick={handleSaveAndTest}
-                                disabled={isBusy}
-                                className="btn btn-primary w-full"
-                            >
-                                <Icon icon="lock" className="w-4 h-4" />로컬 드라이브에 암호화 저장 &amp; 연결 테스트
+                        <div className="space-y-2">
+                            <button onClick={handleTest} className="btn btn-primary w-full">
+                                <Icon icon="bolt" className="w-4 h-4" />Gemini 연결 테스트
                             </button>
-                            <button
-                                onClick={handleLoad}
-                                disabled={isBusy}
-                                className="btn btn-secondary w-full"
-                            >
-                                <Icon icon="folder-open" className="w-4 h-4" />저장된 키 파일 불러오기
-                            </button>
+                            <p className="text-xs text-faint flex items-center gap-1.5">
+                                <Icon icon="lock" className="w-3.5 h-3.5" />입력한 키는 자동으로 이 PC에 암호화되어 저장됩니다. 비밀번호는 필요 없습니다.
+                            </p>
                         </div>
 
                         <div className="pt-2 border-t border-line">

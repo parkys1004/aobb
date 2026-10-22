@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApiKey, useExtraKeys } from '../services/apiKeyStore';
+import { useApiKey, useExtraKeys, useKeysReady } from '../services/apiKeyStore';
 import { FREE_PROVIDERS, CUSTOM_SERVER_URL_NAME } from '../services/providers';
 import { useLlmSettings, GEMINI_PROVIDER_ID, CUSTOM_PROVIDER_ID } from '../services/llmSettings';
 import { Icon } from './Icon';
@@ -26,7 +26,8 @@ const useConfigIssue = (): string | null => {
 // 화면 상단에 고정되는 설정 안내. 문제가 해결되면 저절로 사라진다.
 export const ConfigNotice: React.FC<{ onOpenSettings?: () => void }> = ({ onOpenSettings }) => {
     const issue = useConfigIssue();
-    if (!issue) return null;
+    const keysReady = useKeysReady();
+    if (!keysReady || !issue) return null;
 
     return (
         <div role="alert" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-accent/40 bg-accent/10 px-5 py-2.5 text-sm text-fg sm:px-8">

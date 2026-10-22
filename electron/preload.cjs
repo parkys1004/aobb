@@ -8,3 +8,8 @@ contextBridge.exposeInMainWorld('blogPublisher', {
         return () => ipcRenderer.removeListener('naver-blog:progress', handler);
     },
 });
+
+contextBridge.exposeInMainWorld('secureKeys', {
+    load: () => ipcRenderer.invoke('secure-keys:load'),
+    save: (json) => ipcRenderer.invoke('secure-keys:save', json),
+});

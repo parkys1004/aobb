@@ -1,6 +1,7 @@
 const { app, BrowserWindow, shell, Menu, ipcMain } = require('electron');
 const path = require('path');
 const { publishPost } = require('./naverBlog.cjs');
+const secureKeys = require('./secureKeys.cjs');
 
 const DEV_SERVER_URL = process.env.ELECTRON_DEV_SERVER_URL;
 
@@ -31,6 +32,16 @@ const createWindow = () => {
         win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
     }
 };
+
+ipcMain.handle('secure-keys:load', () => secureKeys.load());
+ipcMain.handle('secure-keys:save', (_event, json) => {
+    try {
+        secureKeys.save(String(json));
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+});
 
 ipcMain.handle('naver-blog:publish', async (event, payload) => {
     try {
