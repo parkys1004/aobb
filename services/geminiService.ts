@@ -28,7 +28,6 @@ const generateText = async ({ prompt, tier, schema, temperature, useSearch }: Te
   }
 
   const ai = getAI();
-  const model = GEMINI_MODELS[tier];
   const config: Record<string, unknown> = {};
   if (schema) {
     config.responseMimeType = 'application/json';
@@ -37,9 +36,27 @@ const generateText = async ({ prompt, tier, schema, temperature, useSearch }: Te
   if (useSearch) config.tools = [{ googleSearch: {} }];
   if (temperature !== undefined) config.temperature = temperature;
 
-  const response = await ai.models.generateContent({ model, contents: prompt, config });
-  recordTokenUsage(model, response.usageMetadata);
-  return response.text;
+  const run = async (model: string) => {
+    const response = await ai.models.generateContent({ model, contents: prompt, config });
+    recordTokenUsage(model, response.usageMetadata);
+    return response.text;
+  };
+
+  try {
+    return await run(GEMINI_MODELS[tier]);
+  } catch (error) {
+    // 무료 키는 Pro 모델 한도가 0이라 기다려도 풀리지 않는다. 한도 오류면 Flash-Lite 모델로 한 번 더 시도한다.
+    const message = error instanceof Error ? error.message : String(error);
+    const isQuota = message.includes('429') || message.includes('RESOURCE_EXHAUSTED');
+    if (tier === 'pro' && isQuota) {
+      try {
+        return await run(GEMINI_MODELS.lite);
+      } catch {
+        throw new Error('Gemini 무료 사용 한도를 초과했습니다. 잠시 후 다시 시도하거나 결제 정보를 연결하거나 다른 제공자를 선택해주세요.');
+      }
+    }
+    throw error;
+  }
 };
 
 const getAI = () => {
