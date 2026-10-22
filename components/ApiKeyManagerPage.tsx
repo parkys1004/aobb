@@ -145,7 +145,7 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
     return (
         <>
             <div className="px-5 py-8 sm:px-8">
-                <div className="panel mx-auto w-full max-w-3xl">
+                <div className="panel mx-auto w-full max-w-6xl">
                     <div className="p-4 sm:p-6 border-b border-line flex flex-wrap items-center gap-3 sm:gap-4">
                         <button onClick={onBack} className="btn btn-secondary btn-sm">← 돌아가기</button>
                         <h2 className="text-xl font-bold text-fg flex items-center gap-2"><Icon icon="key" className="w-6 h-6 text-accent" />API 키 · 모델 설정</h2>
@@ -155,6 +155,8 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                             API 키는 앱 빌드에 내장되지 않고 이 브라우저 세션에만 임시로 보관됩니다. 계속 사용하려면 아래에서 로컬 드라이브에 암호화하여 저장한 뒤, 다음에 방문했을 때 불러와주세요.
                         </p>
 
+                        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+                        <div className="space-y-5 min-w-0">
                         <div className="bg-bg rounded-lg p-3 space-y-2">
                             <label className="block text-sm font-bold text-fg">글 생성에 사용할 제공자</label>
                             <select
@@ -271,7 +273,10 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                             {rowTests.custom && <p className="text-xs text-muted">{rowTests.custom}</p>}
                         </div>
 
-                        <div className="pt-2 border-t border-line space-y-3">
+                        </div>
+
+                        <div className="space-y-5 min-w-0">
+                        <div className="space-y-3">
                             <h3 className="text-sm font-bold text-fg">⌨️ CLI 도구 안내</h3>
                             <p className="text-xs text-faint">브라우저 앱에서는 CLI를 직접 실행할 수 없어 터미널에서 설치·로그인 명령을 복사해 사용합니다.</p>
                             {CLI_TOOLS.map(cli => (
@@ -283,7 +288,7 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                                     <p className="text-xs text-faint">{cli.freeNote}</p>
                                     {[{ key: `${cli.id}-install`, text: cli.install }, { key: `${cli.id}-login`, text: cli.login }].map(cmd => (
                                         <div key={cmd.key} className="flex items-center gap-2">
-                                            <code className="flex-1 min-w-0 text-xs text-accent bg-black/40 rounded px-2 py-1 overflow-x-auto whitespace-nowrap">{cmd.text}</code>
+                                            <code className="flex-1 min-w-0 text-xs text-fg bg-raised border border-line rounded px-2 py-1 overflow-x-auto whitespace-nowrap">{cmd.text}</code>
                                             <button type="button" onClick={() => copyCommand(cmd.key, cmd.text)} className="btn btn-secondary btn-sm">
                                                 {copied === cmd.key ? '복사됨' : '복사'}
                                             </button>
@@ -305,7 +310,7 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
                         </div>
 
                         {status && (
-                            <p className={`text-sm rounded-lg px-3 py-2 ${status.type === 'success' ? 'bg-accent/40 text-accent' : 'bg-accent/40 text-accent'}`}>
+                            <p className={`text-sm rounded-lg px-3 py-2 border ${status.type === 'success' ? 'bg-raised border-line text-fg' : 'bg-accent/10 border-accent/40 text-accent'}`}>
                                 {status.message}
                             </p>
                         )}
@@ -329,6 +334,8 @@ export const ApiKeyManagerPage: React.FC<{ onBack: () => void }> = ({ onBack }) 
 
                         <div className="pt-2 border-t border-line">
                             <UsagePanel />
+                        </div>
+                        </div>
                         </div>
                     </div>
                 </div>
